@@ -1,0 +1,310 @@
+{
+    "sheets": {
+        "faeu": {
+            "type": "primary",
+            "columns": {
+                "policy_no": "Policy No",
+                "ins_tax_invoice": "Ins Tax Invoice",
+                "broker_tax_invoice": "Tax.Invoice No(Broker)",
+                "total_premium": "Total Premium(AED)",
+                "total_commission": "Total Commission(AED)",
+                "customer_settled": "Customer Settled (AED)",
+                "commission_collected": "Commission Colleted (AED)"
+            },
+            "key_fields": {
+                "policy_column": "policy_no",
+                "document_columns": [
+                    "ins_tax_invoice",
+                    "broker_tax_invoice"
+                ]
+            },
+            "normalizations": {
+                "policy_no": "normalize_policy",
+                "ins_tax_invoice": "extract_document",
+                "broker_tax_invoice": "extract_document"
+            }
+        },
+        "sukoon": {
+            "type": "secondary",
+            "columns": {
+                "policy_number": "Policy Number",
+                "doc_number": "Doc Number",
+                "trans_amt_local": "Trans Amt Local"
+            },
+            "key_fields": {
+                "policy_column": "policy_number",
+                "document_columns": [
+                    "doc_number"
+                ]
+            },
+            "normalizations": {
+                "policy_number": "normalize_policy",
+                "doc_number": "normalize_document"
+            }
+        }
+    },
+    "matching": {
+        "primary_sheet": "faeu",
+        "secondary_sheets": [
+            "sukoon"
+        ],
+        "output_columns": {
+            "sukoon": {
+                "availability": "Available(Sukoon)"
+            }
+        }
+    },
+    "remarks_rules": {
+        "faeu": {
+            "output_column": "Remarks",
+            "rules": [
+                {
+                    "name": "not_available",
+                    "remark": "Not Available",
+                    "conditions": [
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "Available(Sukoon)"
+                            },
+                            "right": {
+                                "value": "No"
+                            }
+                        }
+                    ],
+                    "condition_logic": "AND"
+                },
+                {
+                    "name": "prem_missing",
+                    "remark": "Prem Missing",
+                    "conditions": [
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "Available(Sukoon)"
+                            },
+                            "right": {
+                                "value": "Yes"
+                            }
+                        },
+                        {
+                            "type": "empty",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "total_premium"
+                            }
+                        }
+                    ],
+                    "condition_logic": "AND"
+                },
+                {
+                    "name": "premium_commission_outstanding",
+                    "remark": "Premium and Commission outstanding",
+                    "conditions": [
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "Available(Sukoon)"
+                            },
+                            "right": {
+                                "value": "Yes"
+                            }
+                        },
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "customer_settled"
+                            },
+                            "right": {
+                                "value": 0
+                            }
+                        },
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "commission_collected"
+                            },
+                            "right": {
+                                "value": 0
+                            }
+                        }
+                    ],
+                    "condition_logic": "AND"
+                },
+                {
+                    "name": "ds_pending",
+                    "remark": "DS_PENDING",
+                    "conditions": [
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "Available(Sukoon)"
+                            },
+                            "right": {
+                                "value": "Yes"
+                            }
+                        },
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "customer_settled"
+                            },
+                            "right": {
+                                "value": 0
+                            }
+                        },
+                        {
+                            "type": "approx_equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "commission_collected"
+                            },
+                            "right": {
+                                "sheet": "faeu",
+                                "column": "total_commission"
+                            },
+                            "tolerance": 0.01
+                        }
+                    ],
+                    "condition_logic": "AND"
+                },
+                {
+                    "name": "reconciled_comm_receivable",
+                    "remark": "Reconciled and Comm Receivable",
+                    "conditions": [
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "Available(Sukoon)"
+                            },
+                            "right": {
+                                "value": "Yes"
+                            }
+                        },
+                        {
+                            "type": "approx_equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "customer_settled"
+                            },
+                            "right": {
+                                "sheet": "faeu",
+                                "column": "total_premium"
+                            },
+                            "tolerance": 0.01
+                        },
+                        {
+                            "type": "less_than",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "commission_collected"
+                            },
+                            "right": {
+                                "sheet": "faeu",
+                                "column": "total_commission"
+                            }
+                        }
+                    ],
+                    "condition_logic": "AND"
+                },
+                {
+                    "name": "reconciled",
+                    "remark": "Reconciled",
+                    "conditions": [
+                        {
+                            "type": "equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "Available(Sukoon)"
+                            },
+                            "right": {
+                                "value": "Yes"
+                            }
+                        },
+                        {
+                            "type": "approx_equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "customer_settled"
+                            },
+                            "right": {
+                                "sheet": "faeu",
+                                "column": "total_premium"
+                            },
+                            "tolerance": 0.01
+                        },
+                        {
+                            "type": "approx_equals",
+                            "left": {
+                                "sheet": "faeu",
+                                "column": "commission_collected"
+                            },
+                            "right": {
+                                "sheet": "faeu",
+                                "column": "total_commission"
+                            },
+                            "tolerance": 0.01
+                        }
+                    ],
+                    "condition_logic": "AND"
+                }
+            ],
+            "default_remark": "Not Reconciled"
+        },
+        "sukoon": {
+            "output_column": "Remarks",
+            "rules": [
+                {
+                    "name": "reconciled_premium",
+                    "remark": "Reconciled",
+                    "conditions": [
+                        {
+                            "type": "key_exists_in",
+                            "source_sheet": "sukoon",
+                            "target_sheet": "faeu"
+                        },
+                        {
+                            "type": "cross_sheet_or",
+                            "conditions": [
+                                {
+                                    "type": "approx_equals",
+                                    "left": {
+                                        "sheet": "sukoon",
+                                        "column": "trans_amt_local"
+                                    },
+                                    "right": {
+                                        "sheet": "faeu",
+                                        "column": "total_premium"
+                                    },
+                                    "tolerance": 0.01
+                                },
+                                {
+                                    "type": "approx_equals",
+                                    "left": {
+                                        "sheet": "sukoon",
+                                        "column": "trans_amt_local"
+                                    },
+                                    "right": {
+                                        "sheet": "faeu",
+                                        "column": "total_commission"
+                                    },
+                                    "tolerance": 0.01
+                                }
+                            ]
+                        }
+                    ],
+                    "condition_logic": "AND"
+                }
+            ],
+            "default_remark": "Not Reconciled"
+        }
+    }
+}

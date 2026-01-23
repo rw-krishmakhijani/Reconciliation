@@ -22,6 +22,10 @@
                 "policy_no": "normalize_policy",
                 "ins_tax_invoice": "extract_document",
                 "broker_tax_invoice": "extract_document"
+            },
+            "trans_type_column_labels": {
+                "Ins Tax Invoice": "Premium",
+                "Tax.Invoice No(Broker)": "Commission"
             }
         },
         "sukoon": {
@@ -50,7 +54,8 @@
         ],
         "output_columns": {
             "sukoon": {
-                "availability": "Available(Sukoon)"
+                "availability": "Available(Sukoon)",
+                "trans_type": "Trans_Type(Sukoon)"
             }
         }
     },

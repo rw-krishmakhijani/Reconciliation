@@ -200,7 +200,7 @@ def perform_matching(
 ) -> pd.DataFrame:
     """
     Perform matching between primary sheet and all secondary sheets.
-    Creates separate availability columns for each secondary sheet.
+    Creates separate availability and matched_column columns for each secondary sheet.
     Sets internal _matched_key and _has_match columns for backward compatibility.
     """
     matching_config = config['matching']
@@ -227,6 +227,10 @@ def perform_matching(
     matched_keys_list = []
     has_match_list = []
     per_sheet_availability = {sec_name: [] for sec_name in secondary_dfs.keys()}
+    per_sheet_trans_type = {sec_name: [] for sec_name in secondary_dfs.keys()}
+    
+    # Get transaction type column labels mapping from primary config
+    trans_type_labels = primary_config.get('trans_type_column_labels', {})
     
     for idx, row in primary_df.iterrows():
         keys = generate_composite_keys(row, primary_config)
@@ -236,14 +240,18 @@ def perform_matching(
         # Check against each secondary sheet
         for sec_name in secondary_dfs.keys():
             sec_matched = False
+            sec_trans_type = ""
             for key, col_name in keys:
                 if key in secondary_key_sets[sec_name]:
                     sec_matched = True
+                    # Apply transaction type label if available, otherwise use actual column name
+                    sec_trans_type = trans_type_labels.get(col_name, col_name)
                     if not matched_key:  # Save first match for backward compatibility
                         matched_key = key
                     break
             
             per_sheet_availability[sec_name].append("Yes" if sec_matched else "No")
+            per_sheet_trans_type[sec_name].append(sec_trans_type)
             if sec_matched:
                 overall_match = True
         
@@ -259,6 +267,12 @@ def perform_matching(
         if sec_name in output_cols and 'availability' in output_cols[sec_name]:
             col_name = output_cols[sec_name]['availability']
             primary_df[col_name] = availability_values
+    
+    # Add per-sheet transaction type columns
+    for sec_name, trans_type_values in per_sheet_trans_type.items():
+        if sec_name in output_cols and 'trans_type' in output_cols[sec_name]:
+            col_name = output_cols[sec_name]['trans_type']
+            primary_df[col_name] = trans_type_values
     
     return primary_df
 
@@ -649,6 +663,18 @@ def reconcile(
     remarks_col = config['remarks_rules'].get(primary_name, {}).get('output_column', 'Remarks')
     if remarks_col in primary_df.columns:
         print(f"  {remarks_col}: {primary_df[remarks_col].value_counts().to_dict()}")
+        
+        # Add transaction type breakdown for each remark
+        for sec_name in secondary_dfs.keys():
+            if sec_name in output_cols and 'trans_type' in output_cols[sec_name]:
+                trans_type_col = output_cols[sec_name]['trans_type']
+                if trans_type_col in primary_df.columns:
+                    print(f"\n  Breakdown by {sec_name.capitalize()} Transaction Type:")
+                    # Group by remarks and trans_type
+                    grouped = primary_df.groupby([remarks_col, trans_type_col]).size()
+                    for (remark, trans_type), count in grouped.items():
+                        if trans_type:  # Only show if trans_type is not empty
+                            print(f"    {remark} via {trans_type}: {count}")
     
     for sec_name, sec_df in secondary_dfs.items():
         print(f"\n{sec_name.upper()} Sheet:")
